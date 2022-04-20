@@ -30,3 +30,7 @@ def reaction_kinetic_ODE_system(c, k, params, n_particle, l):
                    * (c[8-1]/(c[7-1] + c[8-1])) * c[5-1]) ** (m/2) * c[3-1] ** (n/2) * params.ratioFe_Cu[l] \
                    /(1-params.ratioFe_Cu[l]) * params.N_A/1000
     return dcdt
+
+# Wrapper for ODE solver
+def dcdt_r(t, c, k, params, n_particle, l):
+    return reaction_kinetic_ODE_system(c, k, params, n_particle, l)
