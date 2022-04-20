@@ -139,6 +139,7 @@ plt.legend()
 # %#% Plot final model fit and experimental data (concentration profiles)
 if 1:
     fig = plt.figure(2)
+    print(f'colors = {colors}')
     print(data['time'][0].shape)
     markers = ['o', '^', 's', 'h']
     ax = plt.gca()
@@ -158,7 +159,7 @@ if 1:
         print(f"model['c_cu2p_1'][i] = {model['c_cu2p_1'][i][2-1]}")
         print(f"model['c_cu2p_2'][i] = {model['c_cu2p_2'][i][-1]}")
        # ax.plot(model['t'][i], model['c_cu2p_1'][i][2-1] + model['c_cu2p_2'][i][-1])
-        ax.plot(model['t'][i], model['c_cu2p_1'][i][2-1])
+        ax.plot(model['t'][i], model['c_cu2p_1'][i][2-1], color=colors[i])
     ax.set_xscale('log')
     ax.set_xlabel('Time t in h'  # , fontsize=28
                   )
