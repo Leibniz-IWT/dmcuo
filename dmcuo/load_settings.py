@@ -7,7 +7,6 @@ def load_settings():
         def __init__(self):
            self.t_stop  = 250
            self.errorbars = 1  # % Display errorbars (0 - off = 1 - on)
-           #self.N_nodes = 2500  # % Number of nodes in numerical grid for solution of the diffusion equation (diffusion_controlled_release()) in -
            self.N_nodes = 500  # % Number of nodes in numerical grid for solution of the diffusion equation (diffusion_controlled_release()) in -
 
            self.t_max = 1e-6  # % Max. timestep for solution of diffusion equation in s
@@ -36,7 +35,6 @@ def load_settings():
     cyan =np.array( [0, 147, 221])/255.0
     green = np.array([132, 194, 37])/255.0
     red = np.array([218, 37, 29])/255.0
-    colors = [black, cyan, green, red]
     colors = [black, red, cyan, green]
 
     return opts, params, colors

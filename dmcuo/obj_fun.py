@@ -4,7 +4,7 @@ from dmcuo.reaction_kinetic_ODE_system import reaction_kinetic_ODE_system, dcdt_
 from dmcuo.diffusion_controlled_release import diffusion_controlled_release
 
 #%% Objective function that calculates the root mean square error (RMSE) between experimental data and model for a set of parameters (params_x[#-1]#%% The model data is obtained from the superimposed solution of the kinetically driven relase (solution 1) and the diffusion limited release (solution 2)
-def obj_fun(params_x, data, params, opts, colors, diffusion=True):
+def obj_fun(params_x, data, params, opts, colors):
     # init contianers
     k = np.zeros(len(params_x))
     c = np.zeros(8)  # Correct?
@@ -15,23 +15,10 @@ def obj_fun(params_x, data, params, opts, colors, diffusion=True):
              'c_cu2p_1': [],
              'c_cu2p_2': [],
              }
-   # #%% Error initialization
-    minSquareError = 0.0
-    print(f'data = {data}')
-    print(f'opts = {opts}')
-   # #%% Model calculation for pure CuO, #1%Fe+CuO, #6%Fe+CuO and 1#0%Fe+CuO
+
+    minSquareError = 0.0  #%% Error initialization
     for l in range(params.n_data):
         # #%% Prepare experimental data - Concentration profiles
-        # % Indicies of the data (table with varying length)
-    #    first_idx = 1
-    #    last_idx = find(data.time(l,:) ~= 0,1,'last')
-        # % Remove empty datapoints (zeros) in the table
-     #   time_eval{l} = data.time(l,first_idx:last_idx)
-     #   conc_eval{l} = data.c_cu2p(l,first_idx:last_idx)
-        # % Remove datapoints exceeding opts.t_stop limit  #TODO:
-     #  time_eval{l} = time_eval{l}(find(time_eval{l} <= opts.t_stop))
-     #   conc_eval{l} = conc_eval{l}(find(time_eval{l} <= opts.t_stop))
-
         data_time = data['time'][l]
         data_c_cu2p = data['mean'][l]
         data_time = np.trim_zeros(data_time, 'b')  # trim trailing zeros from data set
@@ -71,43 +58,24 @@ def obj_fun(params_x, data, params, opts, colors, diffusion=True):
         c[7-1] = params.ratioFe_Cu[l]*c[5-1]/k[6-1]# % f_fe
         c[8-1] = (1-params.ratioFe_Cu[l])*c[5-1]/k[6-1]# % f_Cu
         
-       # #%% Set initial conditions for the ODE system
+        # #%% Set initial conditions for the ODE system
         ic = [c[1-1], c[2-1], c[3-1], c[4-1], c[5-1], c[6-1], c[7-1], c[8-1]]
 
-       # #%% Options for ode45
-       # ode_opts = odeset('RelTol',2e-14,'AbsTol',1e-12,'Nonnegative',[])
+        # #%% Options for integrator:
         ode_options = {'rtol': 2e-14,
                        'atol': 1e-12 }
-       # #%% Timespan of model simulation
-        #tSpan = [0:1:opts.t_stop]
-        tSpan = np.linspace(0, opts.t_stop)
-        
-       # #%% SOLUTION 1: Numerial solution of the model defined in reaction_kinetic_ODE_system using ode45
-      #  sol1 = ode45(@(t,c) reaction_kinetic_ODE_system(c,k,params,n_particle,l), tSpan, ic, ode_opts)
 
         # reaction_kinetic_ODE_system(c,k,params,n_particle,l))
         # NOTE: dcdt_r is a wrapper for reaction_kinetic_ODE_system
         y0 = ic
         sol1 = scipy.integrate.solve_ivp(dcdt_r, (data_time[0], data_time[-1]), y0, method='RK45',
-                                         #t_eval=tSpan,
                                          t_eval=data_time,
-                                        # dense_output=False, events=None, vectorized=False,
                                          args=(k, params, n_particle, l),
                                          **ode_options)
 
         # #%% SOLUTION 2: Numerical solution of the diffusion model defined in diffusion_controlled_release
-        #if l == 1:
-           # % pure CuO dissolves without the diffusion controlled release
-       #     sol2 = 0
-       # else:
-           # % Diffusion controlled release with final radius from solution
-           # % 1 as starting point
-            #r_final = sol1.y[4,:]
         r_final = sol1.y[4-1,-1]
         sol2 = diffusion_controlled_release(r_final, k, params, opts, c, l, t_eval=data_time)
-        #sol2.y[np.isnan(sol2.y)] = 0
-        print(f'l = {l}')
-        print(f'sol2 = {sol2}')
         sol2.y = np.nan_to_num(sol2.y)
         if l == 1 - 1:
             sol2.y = np.zeros(len(data_time))  # Should be zero since it is pure CuO dissolves without the diffusion
@@ -115,45 +83,24 @@ def obj_fun(params_x, data, params, opts, colors, diffusion=True):
             sol2.t = np.zeros(len(data_time))
         else:
             sol2.y = sol2.y[-1, :]
-        if not diffusion:
-            sol2.y = np.zeros(len(data_time))  # model without diffusion
 
-        print(f'sol1.y = {sol1.y}')
-        print(f'sol2.y = {sol2.y}')
-        print(f'sol2.t = {sol2.t}')
         # #%% Evaluation of solutions 1 and 2 at the experimental data (times)
-
         sim.append(sol1.y)
         sim2.append(sol2.y)
 
         # % Plot intermediate results for each iteration step
         #NOTE: plt.pause(0.01) can do this if needed, however, I would not recommend
         #      this in any simulation loop for performance considerations. - Stefan Endres
-
        # #%% Save model results for plot
         model['t'].append(sol1.t)
-        #model.c_cu2p_1{l} = deval(sol1,sol1.x)
         model['c_cu2p_1'].append(sol1.y)
-        #if l == 1-1:
-            #model.c_cu2p_2{l} = 0
-        #    model['c_cu2p_2'].append(0)
-       # else:
-            #model.c_cu2p_2{l} = deval(sol2,sol1.x)
-
-       # sol2y = np.interp(x, xp, fp)
-        #sol2y = np.interp(sol1.t, sol2.t, sol2.y)
         sol2y = sol2.y
-        print(f'sol2y = {sol2y}')
         model['c_cu2p_2'].append(sol2y)
 
-       # #%% Calculation of the objective function, RMSE
-       # minSquareError = minSquareError + sum((sim{l}(2,:) + sim2{l}(end,:) - conc_eval{l}).^2)/length(conc_eval{l})
+       # #%% Calculation of the objective function, RMSE  # minSquareError = minSquareError + sum((sim{l}(2,:) + sim2{l}(end,:) - conc_eval{l}).^2)/length(conc_eval{l})
        #NOTE: conc_eval became data_c_cu2p after the coversion
         try:
-            if diffusion:
-                minSquareError = np.linalg.norm(sol1.y + sol2y - data_c_cu2p) / len(data_c_cu2p)
-            else:
-                minSquareError = np.linalg.norm(sol1.y + data_c_cu2p) / len(data_c_cu2p)
+            minSquareError = np.linalg.norm(sol1.y + sol2y - data_c_cu2p) / len(data_c_cu2p)
         except ValueError:
             minSquareError = np.inf
     return [minSquareError, model, sol2]

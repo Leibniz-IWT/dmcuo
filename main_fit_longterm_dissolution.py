@@ -26,9 +26,6 @@ data_path = 'dmcuo/Data/dissolution_profiles_cu2p.json'
 # 2. Fit of kinetic model
 # 3. Plot experimental data together with model fit
 
-## Clean workspace and cmd window
-#clear all clc warning off
-
 ## Load settings
 # Note: N_Nodes should be 2500 for sufficient precision
 opts, params, colors = load_settings()
@@ -64,34 +61,10 @@ c4 = 0  #% C_crystalization,0 initial concentration
 params_0, params_lb, params_ub = set_model_params(k1, k2, k3, k4, ks, D_solid, c1, c2, c3, c4)
 # % Number of fit parameters as defined in params_0
 nvar = len(params_0)
-
-#  clean the data of the concentration profiles [new for Python translation -SCE]:
-#data['mean']
-#data.time
-
-# Test function conversions:
-if 0:
-    # Test ODE system:
-    l =0
-    k = np.ones(6)
-    n_particle = 1e10
-    c = np.ones(8)
-    print(reaction_kinetic_ODE_system(c, k, params, n_particle, l))
-    # Test diffusion function
-    r_f = 1  # r_final, final concentration?
-    print(diffusion_controlled_release(r_f, k, params, opts, c, l))
-    # obj_fun(params_x,data,params,opts,colors)
-# % (In)equalitiy condition
-Aeq = []
-Beq = []
-
 # % Definition of fit function (RMSE) to minimize in file obj_fun
 #  objective = @(params_x)obj_fun(params_x,data,params,opts,colors)
 obj_fun(params_0, data, params, opts, colors)
-# % Fitting of model parameters with minimum root mean square error (params_f) using
-# % fmincon
-#[params_f, Fend] = fmincon(objective, params_0, Aeq, Beq, [], [], params_lb, params_ub)
-
+# % Fitting of model parameters with minimum root mean square error (params_f)
 bounds = []
 for plb, pub in zip(params_lb, params_ub):
     bounds.append([plb, pub])
@@ -108,16 +81,13 @@ else:
     params_f = params_0
 
 # % Calculation of model profiles using final params_f obtained from fmincon
-# TODO: Extend the resolution of the data time?
 tSpan = np.linspace(0, data['time'][-1][-1], 3000)
-print(f" data['time'] = { data['time']}")
-
 tl = data['time'].shape[0]
 data_time = copy.copy(data['time'])
 data['time'] = []
 for l in range(tl):
     data['time'].append(tSpan)
-# data['time'][l]
+
 [minSquareError, model, sol2] = obj_fun(params_f, data, params, opts, colors)
 
 data['time'] = data_time
@@ -127,7 +97,6 @@ fig = plt.figure(1)
 markers = ['o', '^', 's', 'h']
 ax = plt.gca()
 for i in range(params.n_data):
-    print(i)
     t = data['time'][i]
     y = data['mean'][i]
     ax.scatter(t, y, marker=markers[i], s=30, color=colors[i],
@@ -137,84 +106,34 @@ for i in range(params.n_data):
                  elinewidth=2, capthick=2, errorevery=1, alpha=1, ms=4, capsize=5
                  )
 ax.set_xscale('log')
-ax.set_xlabel('Time t in h'#, fontsize=28
-              )
-ax.set_ylabel(r'Concentration $c_{Cu2+}$ in mM'#, fontsize=28
-              )
+ax.set_xlabel('Time t in h')
+ax.set_ylabel(r'Concentration $c_{Cu2+}$ in mM')
 plt.legend()
 
 # %#% Plot final model fit and experimental data (concentration profiles)
-if 1:
-    fig = plt.figure(2)
-    markers = ['o', '^', 's', 'h']
-    ax = plt.gca()
-    for i in range(params.n_data):
-        print(i)
-        t = data['time'][i]
-        y = data['mean'][i]
-        ax.scatter(t, y, marker=markers[i], s=30, color=colors[i],
-                   label=data_keys[i])
-        yerror = data['max'][i] - data['min'][i]
-        ax.errorbar(t, y, yerr=yerror, ls='none', color='Black',
-                    elinewidth=2, capthick=2, errorevery=1, alpha=1, ms=4, capsize=5
-                    )
-        # plot(model.t{i},model.c_cu2p_1{i}(2,:)+model.c_cu2p_2{i}(end,:),'k-')
-       # ax.plot(model['t'][i], model['c_cu2p_1'][i][2-1] + model['c_cu2p_2'][i][-1])
-        print(f"model['t'][i] = {model['t'][i]}")
-        print(f"model['c_cu2p_1'][i][2-1] = {model['c_cu2p_1'][i][2-1]}")
-        print(f"model['c_cu2p_1'][i][2-1] + model['c_cu2p_2'][i] = {model['c_cu2p_1'][i][2-1] + model['c_cu2p_2'][i]}")
-        ax.plot(model['t'][i][1:], model['c_cu2p_1'][i][2-1][1:], '--', color=colors[i])
-        ax.plot(model['t'][i][1:], model['c_cu2p_1'][i][2-1][1:] + model['c_cu2p_2'][i][1:], color=colors[i])
-    ax.set_xscale('log')
-    ax.set_xlabel('Time t in h'  # , fontsize=28
-                  )
-    ax.set_ylabel(r'Concentration $c_{Cu2+}$ in mM'  # , fontsize=28
-                  )
-    plt.legend()
+fig = plt.figure(2)
+markers = ['o', '^', 's', 'h']
+ax = plt.gca()
+for i in range(params.n_data):
+    print(i)
+    t = data['time'][i]
+    y = data['mean'][i]
+    ax.scatter(t, y, marker=markers[i], s=30, color=colors[i],
+               label=data_keys[i])
+    yerror = data['max'][i] - data['min'][i]
+    ax.errorbar(t, y, yerr=yerror, ls='none', color='Black',
+                elinewidth=2, capthick=2, errorevery=1, alpha=1, ms=4, capsize=5
+                )
+    ax.plot(model['t'][i][1:], model['c_cu2p_1'][i][2-1][1:], '--', color=colors[i])
+    ax.plot(model['t'][i][1:], model['c_cu2p_1'][i][2-1][1:] + model['c_cu2p_2'][i][1:], color=colors[i])
+ax.set_xscale('log')
+ax.set_xlabel('Time t in h'  # , fontsize=28
+              )
+ax.set_ylabel(r'Concentration $c_{Cu2+}$ in mM'  # , fontsize=28
+              )
+plt.legend()
 
- #   for i in range(1,params.n_data):
-       # plot(model.t{i},model.c_cu2p_1{i}(2,:)+model.c_cu2p_2{i}(end,:),'k-')
-       # hold on
-       # e = errorbar(data.time(i,:),data.c_cu2p(i,:),opts.errorbars*(data.c_cu2p_max(i,:)-data.c_cu2p_min(i,:)),'s','MarkerEdgeColor',colors(i,:),'MarkerFaceColor',colors(i,:),'MarkerSize',10)
-  #      e.CapSize = 12
-  #      e.LineWidth = 2
-  #      e.Color = 'black'
-
-   # h = legend('','CuO','','CuO+1#%Fe','','CuO+6#%Fe','','CuO+10#%Fe')
-   # xlabel('Time t in h','FontSize',28)
-   # ylabel('Concentration c_{Cu2+} in mM','FontSize',28)
-   # set(findall(gcf,'Type','axes'),'LineWidth',2.835)
-   # set(gca,'fontsize',30)
-   # set(findall(gca, 'Type', 'Line'),'LineWidth',2.835)
-   # set(gca,'XScale','log')
-   # set(gca,'Xtick',[1, 10, 100])
-   # xlim([0.5, opts.t_stop])
-   # axis square
-    #set(gcf,'Position',[50, 50, 650, 650])
-
-
-    if 0:
-        #%#% Plot copper concentration profile in particle c_cu(r(t),t)
-        if opts.disp_particle_profile == 1:
-            for i in range( 1,length(sol2.x)):
-                figure(3)
-                radius = sol2.y(end-1,i) #% Shrinking particle size, i.e. moving boundary condition, R(t)
-              #  c_cu_r = sol2.y(1:end-2,i) #% copper concentration profile in particle c_cu(r,t)
-              #  plot([1:1:length(sol2.y)-2]/(length(sol2.y)-2)*radius,sol2.y(1:end-2,i)/max(sol2.y(1:end-2,i))) #% c_cu(R(t)), normalized
-              #  text(0.5,0.1, ['t = ' num2str(sol2.x(i)) ' h'],'FontSize',28)
-                xlabel('Radius r in nm','FontSize',28)
-                ylabel('Norm. concentration c_{Cu}(R(t),t)','FontSize',28)
-                set(findall(gcf,'Type','axes'),'LineWidth',2.835)
-                set(gca,'fontsize',30)
-                set(findall(gca, 'Type', 'Line'),'LineWidth',2.835)
-                xlim([0, 5])
-               # axis square
-                pause(0.01)
-                set(gcf,'Position',[50, 50, 650, 650])
-
-
-    #disp("Fit Parameter:")
-    print(f'Final parameter set:')
-    print(f'params_f = {params_f}')
+print(f'Final parameter set:')
+print(f'params_f = {params_f}')
 
 plt.show()

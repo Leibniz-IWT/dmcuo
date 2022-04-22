@@ -29,24 +29,17 @@ def diffusion_controlled_release(r_f, k, params, opts, c, l, t_eval=None):
     
     #% ODE solver, stiff ode15s solver chosen due to strong concentration
     #% gradients in the beginning
-
-
     args = (params, opts, k, l, c0)
     # first_step=None, min_step=0.0, max_step=inf, rtol=0.001, atol=1e-06, jac=None, lband=None, uband=None,
     options = {'first_step': 1e-20,
                'atol': 1e-12,
-               #'atol': 1e-3,
                'rtol': 1e-10,
-              # 'rtol': 1e-2
                }
 
     sol2 = scipy.integrate.solve_ivp(radial_diffusion_PDE, t_span, y_0,
-                                     #method='LSODA',
-                                       method='RK45',
-                                    t_eval=t_eval, dense_output=False, events=None, vectorized=False,
-                                    args=args,
-                                    # **options
+                                     method='RK45',#='LSODA',
+                                     t_eval=t_eval, dense_output=False, events=None, vectorized=False,
+                                     args=args,
+                                     **options
                                      )
-
-    # fun(t, y). Here t is a scalar, and there are two options for the ndarray y
     return sol2
