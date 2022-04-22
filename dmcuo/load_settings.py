@@ -37,5 +37,6 @@ def load_settings():
     green = np.array([132, 194, 37])/255.0
     red = np.array([218, 37, 29])/255.0
     colors = [black, cyan, green, red]
+    colors = [black, red, cyan, green]
 
     return opts, params, colors

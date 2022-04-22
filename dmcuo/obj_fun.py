@@ -1,10 +1,10 @@
 import numpy as np
 import scipy.integrate
-from reaction_kinetic_ODE_system import reaction_kinetic_ODE_system, dcdt_r
-from diffusion_controlled_release import diffusion_controlled_release
+from dmcuo.reaction_kinetic_ODE_system import reaction_kinetic_ODE_system, dcdt_r
+from dmcuo.diffusion_controlled_release import diffusion_controlled_release
 
 #%% Objective function that calculates the root mean square error (RMSE) between experimental data and model for a set of parameters (params_x[#-1]#%% The model data is obtained from the superimposed solution of the kinetically driven relase (solution 1) and the diffusion limited release (solution 2)
-def obj_fun(params_x, data, params, opts, colors):
+def obj_fun(params_x, data, params, opts, colors, diffusion=True):
     # init contianers
     k = np.zeros(len(params_x))
     c = np.zeros(8)  # Correct?
@@ -60,12 +60,12 @@ def obj_fun(params_x, data, params, opts, colors):
         c[3-1] = params.c0[3-1]  # % C_AA (amino acid, fixed) in mM
         
         # #%% Calculated values based on input
-        V0 = c[1-1]*params.M_CuO/params.rho_CuO# % Particle volume in nm2
-        n_particle = V0/(4/3*np.pi*r0*r0*r0)# % Number of particles in -
-        a0 = 3*V0/r0# % Total particle surface area in nm2
-        c[4-1] = r0# % r_CuO - Particle radius in nm
-        c[5-1] = a0# % a_CuO - Particle surface area in nm2
-        c[6-1] = V0# % V_CuO - Particle volume in nm2
+        V0 = c[1-1]*params.M_CuO/params.rho_CuO  # % Particle volume in nm2
+        n_particle = V0/(4/3*np.pi*r0*r0*r0)  # % Number of particles in -
+        a0 = 3*V0/r0  # % Total particle surface area in nm2
+        c[4-1] = r0  # % r_CuO - Particle radius in nm
+        c[5-1] = a0  # % a_CuO - Particle surface area in nm2
+        c[6-1] = V0  # % V_CuO - Particle volume in nm2
         
         # #%% Initial iron-copper and copper-iron ratio
         c[7-1] = params.ratioFe_Cu[l]*c[5-1]/k[6-1]# % f_fe
@@ -104,42 +104,32 @@ def obj_fun(params_x, data, params, opts, colors):
            # % 1 as starting point
             #r_final = sol1.y[4,:]
         r_final = sol1.y[4-1,-1]
-        sol2 = diffusion_controlled_release(r_final, k, params, opts, c, l)
+        sol2 = diffusion_controlled_release(r_final, k, params, opts, c, l, t_eval=data_time)
+        #sol2.y[np.isnan(sol2.y)] = 0
+        print(f'l = {l}')
+        print(f'sol2 = {sol2}')
+        sol2.y = np.nan_to_num(sol2.y)
+        if l == 1 - 1:
+            sol2.y = np.zeros(len(data_time))  # Should be zero since it is pure CuO dissolves without the diffusion
+                                               # controlled release, but force in case
+            sol2.t = np.zeros(len(data_time))
+        else:
+            sol2.y = sol2.y[-1, :]
+        if not diffusion:
+            sol2.y = np.zeros(len(data_time))  # model without diffusion
 
-        
-       # #%% Evaluation of solutions 1 and 2 at the experimental data (times)
-        if 1:
-            sim.append(sol1.y)
-           # if l == 1-1:
-               # % pure CuO dissolves without the diffusion controlled release
-           #     sim2.append(0)  # Is this step still needed?
-          #  else:
-            sim2.append(sol2.y)
-            #end
+        print(f'sol1.y = {sol1.y}')
+        print(f'sol2.y = {sol2.y}')
+        print(f'sol2.t = {sol2.t}')
+        # #%% Evaluation of solutions 1 and 2 at the experimental data (times)
+
+        sim.append(sol1.y)
+        sim2.append(sol2.y)
 
         # % Plot intermediate results for each iteration step
         #NOTE: plt.pause(0.01) can do this if needed, however, I would not recommend
         #      this in any simulation loop for performance considerations. - Stefan Endres
-        if opts.disp_intermediate_results == 1:
-            pass
-            # Plots or save data:
-            #figure(10)
-            #semilogx(time_eval{l},sim{l}(2,:)+sim2{l}(end,:),'k-',time_eval{l},sim{l}(2,:),'k--',time_eval{l},sim2{l}(end,:),'k-.',time_eval{l},conc_eval{l},'s','MarkerEdgeColor',colors(l,:),'MarkerFaceColor',colors(l,:),'MarkerSize',10)
-            #ylim([0 2.5])
-            #h = legend('c_{Cu2+,sol1+sol2}','c_{Cu2+,sol1}','c_{Cu2+,sol2}','c_{Cu2+,exp}')
-            #xlabel('Time t in h','FontSize',28)
-            #ylabel('Concentration c_{Cu2+} in mM','FontSize',28)
-            #set(findall(gcf,'Type','axes'),'LineWidth',2.835)
-            #set(gca,'fontsize',30)
-            #set(findall(gca, 'Type', 'Line'),'LineWidth',2.835)
-            #set(gca,'XScale','log')
-            #set(gca,'Xtick',[1 10 100])
-            #xlim([0.5 opts.t_stop])
-            #axis square
-            #set(gcf,'Position',[50 50 650 650])
-        else:
-            pass
-        
+
        # #%% Save model results for plot
         model['t'].append(sol1.t)
         #model.c_cu2p_1{l} = deval(sol1,sol1.x)
@@ -149,11 +139,21 @@ def obj_fun(params_x, data, params, opts, colors):
         #    model['c_cu2p_2'].append(0)
        # else:
             #model.c_cu2p_2{l} = deval(sol2,sol1.x)
-        model['c_cu2p_2'].append(sol2.y)
+
+       # sol2y = np.interp(x, xp, fp)
+        #sol2y = np.interp(sol1.t, sol2.t, sol2.y)
+        sol2y = sol2.y
+        print(f'sol2y = {sol2y}')
+        model['c_cu2p_2'].append(sol2y)
 
        # #%% Calculation of the objective function, RMSE
        # minSquareError = minSquareError + sum((sim{l}(2,:) + sim2{l}(end,:) - conc_eval{l}).^2)/length(conc_eval{l})
        #NOTE: conc_eval became data_c_cu2p after the coversion
-        minSquareError = np.linalg.norm(sol1.y - data_c_cu2p) / len(data_c_cu2p)
-
+        try:
+            if diffusion:
+                minSquareError = np.linalg.norm(sol1.y + sol2y - data_c_cu2p) / len(data_c_cu2p)
+            else:
+                minSquareError = np.linalg.norm(sol1.y + data_c_cu2p) / len(data_c_cu2p)
+        except ValueError:
+            minSquareError = np.inf
     return [minSquareError, model, sol2]

@@ -6,20 +6,20 @@
 # Library imports:
 import numpy as np
 import codecs, json
+import copy
 # Non std.:
 import scipy.io
 import scipy.optimize
 import matplotlib.pyplot as plt
 
 # Module specific imports:
-from load_settings import load_settings
-from set_model_params import set_model_params
-from set_model_params import set_model_params
+from dmcuo.load_settings import load_settings
+from dmcuo.set_model_params import set_model_params
 #from obj_fun import obj_fun
-from reaction_kinetic_ODE_system import reaction_kinetic_ODE_system
-from diffusion_controlled_release import diffusion_controlled_release
-from obj_fun import obj_fun
-data_path = './Data/dissolution_profiles_cu2p.json'
+from dmcuo.reaction_kinetic_ODE_system import reaction_kinetic_ODE_system
+from dmcuo.diffusion_controlled_release import diffusion_controlled_release
+from dmcuo.obj_fun import obj_fun
+data_path = 'dmcuo/Data/dissolution_profiles_cu2p.json'
 
 ## Procedure
 # 1. Plot experimental data, i.e. concentration files
@@ -39,13 +39,11 @@ opts, params, colors = load_settings()
 # load data from json:
 obj_text = codecs.open(data_path, 'r', encoding='utf-8').read()
 data = json.loads(obj_text)
-print(f'data.keys() = {data.keys()}')
 for d in data:
     data[d] = np.array(data[d])  # convert lists back to numpy arrays
 
 #  Keys if the 4 data sets for labels
 data_keys = ['CuO', 'CuO + 1% Fe', 'CuO + 6% Fe', 'CuO + 10% Fe']
-
 ## Fit of kinetic model
 # Initial guess of model parameters
 k1 = 20  #% Dissolution rate constant for 0#% Fe
@@ -94,29 +92,38 @@ obj_fun(params_0, data, params, opts, colors)
 # % fmincon
 #[params_f, Fend] = fmincon(objective, params_0, Aeq, Beq, [], [], params_lb, params_ub)
 
+bounds = []
+for plb, pub in zip(params_lb, params_ub):
+    bounds.append([plb, pub])
 if 0:
-    print(f'params_lb, params_ub = {params_lb, params_ub}')
     def obj(x,data, params, opts, colors):
         params_0 = x
         obj = obj_fun(params_0, data, params, opts, colors)
         return obj[0]
 
     res = scipy.optimize.minimize(obj, params_0, args=(data, params, opts, colors))
-    print(f'rest = {res}')
     #scipy.optimize.least_squares
     params_f = res.x
 else:
     params_f = params_0
 
 # % Calculation of model profiles using final params_f obtained from fmincon
-
 # TODO: Extend the resolution of the data time?
+tSpan = np.linspace(0, data['time'][-1][-1], 3000)
+print(f" data['time'] = { data['time']}")
+
+tl = data['time'].shape[0]
+data_time = copy.copy(data['time'])
+data['time'] = []
+for l in range(tl):
+    data['time'].append(tSpan)
+# data['time'][l]
 [minSquareError, model, sol2] = obj_fun(params_f, data, params, opts, colors)
 
+data['time'] = data_time
 ### Plots
 ## Plot experimental data (concentration profiles)
 fig = plt.figure(1)
-print(data['time'][0].shape)
 markers = ['o', '^', 's', 'h']
 ax = plt.gca()
 for i in range(params.n_data):
@@ -139,8 +146,6 @@ plt.legend()
 # %#% Plot final model fit and experimental data (concentration profiles)
 if 1:
     fig = plt.figure(2)
-    print(f'colors = {colors}')
-    print(data['time'][0].shape)
     markers = ['o', '^', 's', 'h']
     ax = plt.gca()
     for i in range(params.n_data):
@@ -154,12 +159,12 @@ if 1:
                     elinewidth=2, capthick=2, errorevery=1, alpha=1, ms=4, capsize=5
                     )
         # plot(model.t{i},model.c_cu2p_1{i}(2,:)+model.c_cu2p_2{i}(end,:),'k-')
-        print(f'model = {model}')
-        print(f"model['t'][i] = {model['t'][i]}")
-        print(f"model['c_cu2p_1'][i] = {model['c_cu2p_1'][i][2-1]}")
-        print(f"model['c_cu2p_2'][i] = {model['c_cu2p_2'][i][-1]}")
        # ax.plot(model['t'][i], model['c_cu2p_1'][i][2-1] + model['c_cu2p_2'][i][-1])
-        ax.plot(model['t'][i], model['c_cu2p_1'][i][2-1], color=colors[i])
+        print(f"model['t'][i] = {model['t'][i]}")
+        print(f"model['c_cu2p_1'][i][2-1] = {model['c_cu2p_1'][i][2-1]}")
+        print(f"model['c_cu2p_1'][i][2-1] + model['c_cu2p_2'][i] = {model['c_cu2p_1'][i][2-1] + model['c_cu2p_2'][i]}")
+        ax.plot(model['t'][i][1:], model['c_cu2p_1'][i][2-1][1:], '--', color=colors[i])
+        ax.plot(model['t'][i][1:], model['c_cu2p_1'][i][2-1][1:] + model['c_cu2p_2'][i][1:], color=colors[i])
     ax.set_xscale('log')
     ax.set_xlabel('Time t in h'  # , fontsize=28
                   )
