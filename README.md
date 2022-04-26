@@ -16,10 +16,10 @@ The workflow used to find the model parameters from experimental data and simula
  
  # How to cite
  
-Please reference the paper
+Please reference the paper:
 
 - H. Naatz, B. B. Manshian, C. Rios Luci, V. Tsikourkitoudi, Y. Deligiannakis, J. Birkenstock, S. Pokhrel, L. Mädler, S. J. Soenen, Angew. Chem. Int. Ed. 2020, 59, 1828.
 
-or the code and data repository 
+or the code and data repository:
 
 - Leibniz Institute for Materials Engineering — IWT. (2022). Leibniz-IWT/dmcuo: First release (v1.0.0). Zenodo. https://doi.org/10.5281/zenodo.6489584
